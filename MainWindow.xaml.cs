@@ -25,6 +25,8 @@ namespace renameify
 	/// </summary>
 	public partial class MainWindow : Window
 	{
+		bool ShowPath = true;
+		bool HideHidden = true;
 		public MainWindow()
 		{
 			InitializeComponent();
@@ -47,7 +49,7 @@ namespace renameify
 			return true;
 		}
 
-		bool IsValidFilename(string testName)
+		private bool IsValidFilename(string testName)
 		{
 			Console.WriteLine(System.IO.Path.GetInvalidPathChars());
 			Regex containsABadCharacter = new Regex("[" + Regex.Escape(new string(System.IO.Path.GetInvalidPathChars())) + "/\\:"+ "]");
@@ -56,12 +58,36 @@ namespace renameify
 			return true;
 		}
 
-		private string RenameItem(string filepath)
+		private bool ShouldIgnore(string filepath)
 		{
 			string fDir = Path.GetDirectoryName(filepath);
 			string fName = Path.GetFileNameWithoutExtension(filepath);
 			string fExt = Path.GetExtension(filepath);
-			return Path.Combine(fDir, String.Concat(PrependTextBox.Text, fName, AppendTextBox.Text, fExt));
+			if (HideHidden)
+			{
+				if (fName.Length == 0) return true;
+				if (fName[0] == '.') return true;
+			}
+			if (IgnoreTextBox.Text.Length != 0)
+			{
+				if (fName.Contains(IgnoreTextBox.Text)) return true;
+			}
+			return false;
+		}
+
+		private string RenameItem(string filepath, bool addFDir = true)
+		{
+			string fDir = Path.GetDirectoryName(filepath);
+			string fName = Path.GetFileNameWithoutExtension(filepath);
+			string fExt = Path.GetExtension(filepath);
+
+			if (FindTextBox.Text.Length > 0)
+			{
+				fName = fName.Replace(FindTextBox.Text, ReplaceTextBox.Text);
+			}
+
+			if(addFDir) return Path.Combine(fDir, String.Concat(PrependTextBox.Text, fName, AppendTextBox.Text, fExt));
+			else return Path.Combine(String.Concat(PrependTextBox.Text, fName, AppendTextBox.Text, fExt));
 		}
 
 		private void DirRename(string sDir)
@@ -79,6 +105,7 @@ namespace renameify
 			{
 				foreach (string f in Directory.GetFiles(sDir))
 				{
+					if (ShouldIgnore(f)) continue;
 					oldfilenames.Add(f);
 					File.Move(f, RenameItem(f));
 					newfilenames.Add(f);
@@ -109,7 +136,8 @@ namespace renameify
 				//add every file in dir
 				foreach (string f in Directory.GetFiles(sDir))
 				{
-					files.Add(RenameItem(f));
+					if (ShouldIgnore(f)) continue;
+					files.Add(RenameItem(f, ShowPath));
 				}
 				//recursive add every file in subdirs
 				foreach (string d in Directory.GetDirectories(sDir))
@@ -123,6 +151,17 @@ namespace renameify
 			}
 
 			return files;
+		}
+
+		public void preview()
+		{
+			if (Directory.Exists(FilePathTextBox.Text))
+			{
+				List<String> files = DirSearch(FilePathTextBox.Text);
+				lbFiles.Items.Clear();
+				foreach (string filename in files)
+					lbFiles.Items.Add(filename);
+			}
 		}
 
 		#endregion
@@ -139,21 +178,10 @@ namespace renameify
 			}
 			else if (result == CommonFileDialogResult.Cancel)
 			{
-				FilePathTextBox.Text = "";
+				//Do nothing its better to leave the text as is
+				//FilePathTextBox.Text = "";
 			}
-
-
-		}
-		private void LoadFiles_Click(object sender, RoutedEventArgs e)
-		{
-			if (Directory.Exists(FilePathTextBox.Text))
-			{
-				List<String> files = DirSearch(FilePathTextBox.Text);
-				lbFiles.Items.Clear();
-				foreach (string filename in files)
-					lbFiles.Items.Add(filename);
-			}
-
+			preview();
 		}
 		private void SaveFiles_Click(object sender, RoutedEventArgs e)
 		{
@@ -162,8 +190,32 @@ namespace renameify
 				DirRename(FilePathTextBox.Text);
 				MessageBox.Show("Renamed files");
 			}
+			preview();
+		}
+
+		private void Exit_Click(object sender, RoutedEventArgs e)
+		{
+			System.Windows.Application.Current.Shutdown();
 		}
 		#endregion
 
+		private void ShowPath_Checked(object sender, RoutedEventArgs e)
+		{
+			ShowPath = !ShowPath;
+			//reload the files
+			preview();
+		}
+
+		private void IncludeHiddenFiles_Checked(object sender, RoutedEventArgs e)
+		{
+			HideHidden = !HideHidden;
+			//reload the files
+			preview();
+		}
+
+		private void TextBox_TextChanged(object sender, TextChangedEventArgs e)
+		{
+			preview();
+		}
 	}
 }
