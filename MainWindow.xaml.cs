@@ -75,20 +75,6 @@ namespace renameify
 			return false;
 		}
 
-		private string RenameItem(string filepath, bool addFDir = true)
-		{
-			string fDir = Path.GetDirectoryName(filepath);
-			string fName = Path.GetFileNameWithoutExtension(filepath);
-			string fExt = Path.GetExtension(filepath);
-
-			if (FindTextBox.Text.Length > 0)
-			{
-				fName = fName.Replace(FindTextBox.Text, ReplaceTextBox.Text);
-			}
-
-			if(addFDir) return Path.Combine(fDir, String.Concat(PrependTextBox.Text, fName, AppendTextBox.Text, fExt));
-			else return Path.Combine(String.Concat(PrependTextBox.Text, fName, AppendTextBox.Text, fExt));
-		}
 
 		private void DirRename(string sDir)
 		{
@@ -152,6 +138,46 @@ namespace renameify
 
 			return files;
 		}
+		private string RenameItem(string filepath, bool addFDir = true)
+		{
+			string fDir = Path.GetDirectoryName(filepath);
+			string fName = Path.GetFileNameWithoutExtension(filepath);
+			string fExt = Path.GetExtension(filepath);
+
+			if (FindTextBox.Text.Length > 0)
+			{
+				fName = fName.Replace(FindTextBox.Text, ReplaceTextBox.Text);
+			}
+
+			if(addFDir) return Path.Combine(fDir, String.Concat(PrependTextBox.Text, fName, AppendTextBox.Text, fExt));
+			else return Path.Combine(String.Concat(PrependTextBox.Text, fName, AppendTextBox.Text, fExt));
+		}
+
+		public void copyFiles(string sDir, string destDir, string text)
+		{
+			char[] seperators = { ',' };
+			List<string> filenames = new List<string>(text.Split(seperators));
+
+			Console.WriteLine(filenames);
+
+			foreach (string f in Directory.GetFiles(sDir))
+			{
+				string fName = Path.GetFileName(f);
+				Console.WriteLine(f);
+				if (filenames.Contains(fName))
+				{
+					Console.WriteLine("file is found here");
+					Console.WriteLine(f);
+					string destpath = Path.Combine(destDir, fName);
+					File.Copy(f, destpath);
+				}
+			}
+			foreach (string d in Directory.GetDirectories(sDir))
+			{
+				//recursive, if I'm going to return filenames need to add this in here
+				copyFiles(d, destDir, text);
+			}
+		}
 
 		public void preview()
 		{
@@ -182,6 +208,23 @@ namespace renameify
 				//FilePathTextBox.Text = "";
 			}
 			preview();
+		}		
+		
+		private void LoadPathToCopyTo_Click(object sender, RoutedEventArgs e)
+		{
+			var dialog = new CommonOpenFileDialog();
+			dialog.IsFolderPicker = true;
+			CommonFileDialogResult result = dialog.ShowDialog();
+			if (result == CommonFileDialogResult.Ok)
+			{
+				copyFromTextBox.Text = dialog.FileName;
+			}
+			else if (result == CommonFileDialogResult.Cancel)
+			{
+				//Do nothing its better to leave the text as is
+				//FilePathTextBox.Text = "";
+			}
+			preview();
 		}
 		private void SaveFiles_Click(object sender, RoutedEventArgs e)
 		{
@@ -189,6 +232,16 @@ namespace renameify
 			{
 				DirRename(FilePathTextBox.Text);
 				MessageBox.Show("Renamed files");
+			}
+			preview();
+		}
+
+		private void CopyFiles_Click(object sender, RoutedEventArgs e)
+		{
+			if (Directory.Exists(copyFromTextBox.Text) & Directory.Exists(FilePathTextBox.Text))
+			{
+				copyFiles(copyFromTextBox.Text, FilePathTextBox.Text, LewisStupidCopyBox.Text);
+				MessageBox.Show("Copied files");
 			}
 			preview();
 		}
